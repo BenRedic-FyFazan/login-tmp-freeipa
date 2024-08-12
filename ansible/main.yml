@@ -2,7 +2,20 @@
 - name: Playbook to configure IPA servers
   hosts: ipaserver
   become: true
+  tasks:
+    - name: Remove incorrect localhost entries from /etc/hosts
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        regexp: '^(127\.0\.0\.1|::1)\s+{{ freeipa_fqdn }}\s+(.*)$'
+        state: absent
 
-  roles:
-    - role: freeipa.ansible_freeipa.ipaserver
-      state: present  # noqa: var-naming[no-role-prefix]
+    - name: Update /etc/hosts with correct entries
+      ansible.builtin.blockinfile:
+        path: /etc/hosts
+        marker: "# {mark} ANSIBLE MANAGED - CORRECT ENTRY FOR {{ freeipa_fqdn }}"
+        block: |
+          {{ ansible_host }} {{ freeipa_fqdn }}
+
+    - name: Install and configure FreeIpa server
+      ansible.builtin.include_role:
+        name: freeipa.ansible_freeipa.ipaserver
